@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Daily News</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  background: #0d1117; color: #e6edf3; min-height: 100vh;
+}
+header {
+  background: linear-gradient(135deg, #ff6b35 0%, #ff8c42 100%);
+  padding: 20px 24px; position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 4px 20px rgba(255,107,53,0.3);
+}
+header h1 { font-size: 20px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 10px; }
+header h1 span.sub { font-size: 13px; opacity: 0.85; font-weight: 400; }
+.date-nav { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.date-nav button {
+  background: rgba(255,255,255,0.2); border: none; color: #fff;
+  width: 36px; height: 36px; border-radius: 50%; font-size: 18px; cursor: pointer; transition: 0.2s;
+}
+.date-nav button:hover { background: rgba(255,255,255,0.35); }
+.date-nav button:disabled { opacity: 0.3; cursor: default; }
+.date-nav .current-date { font-size: 15px; font-weight: 600; color: #fff; }
+.date-nav .day-label { font-size: 12px; color: rgba(255,255,255,0.75); }
+.stats-bar { display: flex; gap: 8px; padding: 16px 24px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.stat-chip { flex-shrink: 0; background: #161b22; border: 1px solid #30363d; border-radius: 20px; padding: 8px 16px; font-size: 13px; color: #8b949e; display: flex; align-items: center; gap: 6px; }
+.stat-chip .num { color: #ff6b35; font-weight: 700; font-size: 16px; }
+.category-tabs { display: flex; gap: 8px; padding: 8px 24px 16px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.cat-tab { flex-shrink: 0; padding: 10px 18px; border-radius: 24px; font-size: 14px; font-weight: 600; cursor: pointer; border: 2px solid transparent; transition: all 0.25s; background: #161b22; color: #8b949e; user-select: none; }
+.cat-tab:hover { border-color: #30363d; }
+.cat-tab.active { background: #ff6b35; color: #fff; border-color: #ff6b35; }
+.cat-tab .count { display: inline-block; background: rgba(255,255,255,0.2); border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-left: 4px; }
+.cat-tab:not(.active) .count { background: #30363d; }
+.cards { padding: 0 16px 100px; }
+.card { background: #161b22; border: 1px solid #21262d; border-radius: 16px; margin-bottom: 12px; overflow: hidden; transition: all 0.25s; }
+.card.hidden { display: none; }
+.card-head { padding: 16px 20px; cursor: pointer; display: flex; gap: 14px; align-items: flex-start; }
+.card-cat-dot { width: 6px; min-height: 40px; border-radius: 3px; margin-top: 2px; flex-shrink: 0; }
+.card-cat-dot.tech { background: #58a6ff; } .card-cat-dot.biz { background: #3fb950; }
+.card-cat-dot.invest { background: #ff6b35; } .card-cat-dot.policy { background: #d2a8ff; }
+.card-cat-dot.society { background: #f778ba; }
+.card-head-content { flex: 1; }
+.card-cat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.card-cat-label.tech { color: #58a6ff; } .card-cat-label.biz { color: #3fb950; }
+.card-cat-label.invest { color: #ff6b35; } .card-cat-label.policy { color: #d2a8ff; }
+.card-cat-label.society { color: #f778ba; }
+.card-title { font-size: 16px; font-weight: 700; line-height: 1.45; color: #e6edf3; }
+.card-arrow { color: #484f58; font-size: 20px; margin-top: 8px; flex-shrink: 0; transition: transform 0.3s; }
+.card.open .card-arrow { transform: rotate(90deg); }
+.card-tier1 { display: none; padding: 0 20px 16px 40px; animation: fadeIn 0.3s; }
+.card.open .card-tier1 { display: block; }
+.tier1-text { font-size: 15px; line-height: 1.75; color: #c9d1d9; margin-bottom: 14px; }
+.tier1-text p { margin-bottom: 10px; }
+.comment-box { background: #0d1117; border: 1.5px solid #ff6b35; border-radius: 12px; padding: 12px 16px; margin-bottom: 14px; display: flex; gap: 10px; align-items: flex-start; }
+.comment-avatar { width: 32px; height: 32px; border-radius: 50%; background: #ff6b35; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: #fff; flex-shrink: 0; margin-top: 2px; }
+.comment-box .label { font-size: 13px; color: #ff6b35; font-weight: 600; margin-bottom: 6px; }
+.comment-box .comment-content { flex: 1; }
+.comment-textarea { width: 100%; min-height: 50px; background: #161b22; border: 1px solid #30363d; border-radius: 8px; color: #c9d1d9; font-size: 14px; line-height: 1.6; padding: 8px 12px; resize: vertical; font-family: inherit; transition: border-color 0.2s; }
+.comment-textarea:focus { outline: none; border-color: #ff6b35; }
+.comment-textarea::placeholder { color: #484f58; }
+.comment-saved { font-size: 11px; color: #3fb950; opacity: 0; transition: opacity 0.3s; margin-top: 4px; }
+.comment-saved.show { opacity: 1; }
+.tier1-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-detail, .btn-nikkei { padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; }
+.btn-detail { background: #21262d; color: #58a6ff; }
+.btn-detail:hover { background: #30363d; }
+.btn-nikkei { background: transparent; color: #8b949e; border: 1px solid #30363d; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+.btn-nikkei:hover { border-color: #484f58; color: #c9d1d9; }
+.card-tier2 { display: none; padding: 0 20px 20px 40px; animation: fadeIn 0.3s; }
+.card.detail-open .card-tier2 { display: block; }
+.detail-section { background: #0d1117; border-radius: 12px; padding: 16px; margin-bottom: 8px; }
+.detail-section h4 { font-size: 13px; color: #ff6b35; font-weight: 700; margin-bottom: 8px; }
+.detail-section p, .detail-section li { font-size: 14px; line-height: 1.7; color: #8b949e; }
+.detail-section ul { list-style: none; padding: 0; }
+.detail-section li::before { content: "・"; color: #484f58; }
+.btn-copy { display: block; width: 100%; padding: 12px; margin-top: 12px; background: #21262d; color: #3fb950; border: 1px solid #30363d; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+.btn-copy:hover { background: #30363d; }
+.btn-copy.copied { background: #238636; color: #fff; border-color: #238636; }
+.tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+.tag { font-size: 11px; color: #58a6ff; background: rgba(88,166,255,0.1); padding: 4px 10px; border-radius: 12px; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+.past-dates { padding: 24px; }
+.past-date-item { background: #161b22; border: 1px solid #21262d; border-radius: 12px; padding: 16px 20px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s; }
+.past-date-item:hover { border-color: #30363d; }
+.past-date-item.current { border-color: #ff6b35; }
+.past-date-item .d { font-weight: 600; font-size: 15px; }
+.past-date-item .cnt { color: #8b949e; font-size: 13px; }
+.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #161b22; border-top: 1px solid #21262d; display: flex; z-index: 100; }
+.bottom-nav button { flex: 1; padding: 12px 0 10px; background: none; border: none; color: #484f58; font-size: 11px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: color 0.2s; }
+.bottom-nav button.active { color: #ff6b35; }
+.bottom-nav button .icon { font-size: 20px; }
+.view { display: none; } .view.active { display: block; }
+@media (min-width: 768px) { body { max-width: 640px; margin: 0 auto; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>AI Daily News <span class="sub">うちのお母さんでも分かるシリーズ</span></h1>
+  <div class="date-nav">
+    <button id="btnPrev" onclick="changeDate(-1)">◀</button>
+    <div>
+      <div class="current-date" id="currentDate"></div>
+      <div class="day-label" id="dayLabel"></div>
+    </div>
+    <button id="btnNext" onclick="changeDate(1)">▶</button>
+  </div>
+</header>
+
+<div class="view active" id="viewToday">
+  <div class="stats-bar" id="statsBar"></div>
+  <div class="category-tabs" id="catTabs"></div>
+  <div class="cards" id="cardList"></div>
+</div>
+
+<div class="view" id="viewArchive">
+  <div class="past-dates" id="archiveList"></div>
+</div>
+
+<div class="bottom-nav">
+  <button class="active" id="navToday" onclick="switchView('today')">
+    <span class="icon">◉</span>今日のニュース
+  </button>
+  <button id="navArchive" onclick="switchView('archive')">
+    <span class="icon">☰</span>過去のニュース
+  </button>
+</div>
+
+<script>
+// ════════════════════════════════════════
+// DATA - All days' articles
+// ════════════════════════════════════════
+const catNames = { tech:"AI技術", biz:"AIビジネス", invest:"AI投資", policy:"AI規制", society:"AI社会" };
+const days = ["2026-02-14","2026-02-15","2026-02-16"];
+
+const DATA = {
+"2026-02-14": {
+  date: "2月14日", dow: "金曜日",
+  articles: [
+    { cat:"tech", catLabel:"AI技術", title:"科学研究に英語の壁、論文却下2倍超。AIで克服へ",
+      tier1: `<p>非英語圏の研究者は英語論文を却下される頻度が<strong>2.5倍</strong>。作成時間も最大5割長い。</p><p>AIが翻訳・校正で英語の壁を壊しつつある。英国生態学会はAIによる<strong>無償の英語校閲サービス</strong>を提供開始。東大も英語授業を導入。</p><p>科学の「共通語」が持つ不平等にAIがメスを入れる。</p>`,
+      details: [
+        { h:"数字で見る英語の壁", body:"<ul><li>非英語圏の研究者の論文却下率：英語圏の2.5倍</li><li>英語論文の作成時間：最大5割増</li><li>世界の科学出版物の98%が英語</li><li>英語以外で発表できる学術誌はわずか6%</li></ul>" },
+        { h:"AIがどう変える？", body:"<p>AIによる翻訳・校正で論文作成の手間を大幅削減。スタンフォード大の研究者（スペイン語母語）は「AIで英語論文の手間が大幅に省けた」と証言。ただし研究者自身の英語力向上も重要。</p>" }
+      ],
+      tags: ["#AI翻訳","#科学研究"], url: "https://www.nikkei.com/article/DGXZQOUF0668R0W6A100C2000000/" },
+    { cat:"tech", catLabel:"AI技術", title:"中国半導体「自立自強」の道。NVIDIA製を密輸、摘発相次ぐ",
+      tier1: `<p>中国がNVIDIA製AI半導体「H100」を密輸で入手しようとする事件が米国で相次いでいる。</p><p>逮捕された中国人は「直接中国に送るな」「追跡装置に注意しろ」と生々しいやり取り。</p><p>一方、ファーウェイの最新半導体は<strong>NVIDIAブラックウェルに迫る性能</strong>との分析も。NVIDIA CEO「中国はすぐ後ろに迫っている」。</p>`,
+      details: [
+        { h:"なぜ密輸するのか？", body:"<p>AI開発には大量のGPUが必要。米国はH100の中国輸出を禁止しているが、AI開発競争は今後数年で勝敗が決するとの見方も。中国は国産化と並行して先端チップの確保に必死。</p>" },
+        { h:"米国のジレンマ", body:"<p>規制一辺倒では中国が国産化を加速する。かといって輸出を認めれば軍事利用のリスク。ラトニック商務長官は旧世代品H20の輸出を容認し「中国を米国技術に依存させる」戦略だが、中国は「侮辱的」と反発しエヌビディア外しを推進。</p>" }
+      ],
+      tags: ["#半導体","#米中対立"], url: "https://www.nikkei.com/article/DGKKZO94410960T10C26A2TEZ000/" },
+    { cat:"biz", catLabel:"AIビジネス", title:"八十二長野銀、30億円で独自AI基盤を構築。地銀初のIBM連携",
+      tier1: `<p>八十二長野銀行がIBM・インテックと連携し、<strong>30億円を投じて全社AI基盤</strong>を構築する。</p><p>OpenAI・Google・Anthropicのモデルを用途別に使い分ける。3つのAIテーマで開発：</p><p>①汎用AI（資料作成・分析）②業務特化AI（融資審査・営業支援）③<strong>擬人化AI（バーチャル行員）</strong></p><p>地銀7行での基盤共有も視野に入れている。</p>`,
+      details: [
+        { h:"なぜ注目？", body:"<p>IBMの統合AI基盤を地域金融機関向けに最適化する初のケース。複数のAIモデルを一元管理し、精度・コスト・セキュリティを要件に応じて使い分ける。</p>" },
+        { h:"今後の展開", body:"<p>2026年から順次稼働予定。「じゅうだん会」の7行をはじめ地銀間で基盤を共有し、開発コスト削減と機能進化を目指す。地銀のAI活用が一気に加速する可能性。</p>" }
+      ],
+      tags: ["#地銀DX","#AIエージェント"], url: "https://www.nikkei.com/article/DGKKZO94402240T10C26A2L31000/" },
+    { cat:"biz", catLabel:"AIビジネス", title:"（社説）アマゾン無人店舗「Amazon Go」撤退の教訓",
+      tier1: `<p>Amazon Goが全米の店舗を閉鎖し撤退。</p><p><strong>最先端技術でも消費者ニーズを捉えられなかった</strong>。カメラ・センサーによるレジなし決済は便利だったが、商品など店舗としての競争力に課題。</p><p>日経の社説は「技術至上主義の限界」を指摘。AI活用は顧客視点・セルフレジ・AIロボット・行動分析が次の主戦場と分析。</p>`,
+      details: [
+        { h:"Amazon Goの失敗の本質", body:"<p>高いコスト（店舗あたり数億円のカメラ・センサー投資）に見合う顧客体験を提供できなかった。「レジ待ちゼロ」だけでは消費者を引きつけられない。中国でも無人コンビニブームは既に下火。</p>" },
+        { h:"日本の小売業への示唆", body:"<p>セブンイレブンもセルフレジ導入を加速。完全無人化より、AIで人の力を活かす方向が正解。消費者の行動分析とパーソナライゼーションが次の成長領域。</p>" }
+      ],
+      tags: ["#小売DX","#無人店舗"], url: "https://www.nikkei.com/article/DGKKZO94415620T10C26A2EA1000/" },
+    { cat:"biz", catLabel:"AIビジネス", title:"AI活用の経営指南。エクサウィザーズが企業支援を拡大",
+      tier1: `<p>AIスタートアップのエクサウィザーズが、企業のAI活用を経営レベルで支援するサービスを拡大。</p><p><strong>AI導入を「現場任せ」にせず経営戦略として推進</strong>する動きが加速している。</p>`,
+      details: [
+        { h:"ポイント", body:"<p>AI活用の成否は技術ではなく経営判断にかかっている。トップダウンでのAI戦略策定と現場実装の両輪が求められる時代。</p>" }
+      ],
+      tags: ["#AI経営","#DX支援"], url: "https://www.nikkei.com/article/DGKKZO94405390T10C26A2L91000/" },
+    { cat:"invest", catLabel:"AI投資", title:"AI株高が高級ブランド復活を牽引。エルメス5%増収",
+      tier1: `<p>エルメスが前期5%増収を達成。好調の理由は意外にも<strong>AI株高による「資産効果」</strong>。</p><p>AI関連株の上昇で中国富裕層の資産が膨らみ、高級ブランド消費が回復。AI投資テーマが実体経済に波及する新たな経済構図が生まれている。</p>`,
+      details: [
+        { h:"AI株高→消費の波及メカニズム", body:"<p>AI関連企業の株価上昇→投資家・富裕層の資産増加→高額消費の回復。特に中国市場でこの効果が顕著。テクノロジー投資が消費経済を動かす時代に。</p>" }
+      ],
+      tags: ["#資産効果","#高級ブランド"], url: "https://www.nikkei.com/article/DGKKZO94411090T10C26A2TEZ000/" },
+    { cat:"invest", catLabel:"AI投資", title:"米国除く世界株が今年6%高。AI競争激化が追い風",
+      tier1: `<p>米国以外の世界株が2026年に入り<strong>6%上昇</strong>。</p><p>AI競争の激化が世界の株式市場に波及し、投資テーマが米国一極集中から分散化の兆し。欧州・アジアのAI関連銘柄にも資金が流入。</p>`,
+      details: [
+        { h:"投資の視点", body:"<p>これまでAI投資は米マグニフィセント7に集中していたが、AI競争が世界に広がることで投資先も多様化。日本・欧州・アジアのAI関連企業にもチャンスが広がる。</p>" }
+      ],
+      tags: ["#世界株","#AI投資"], url: "https://www.nikkei.com/article/DGKKZO94406780T10C26A2ENG000/" },
+    { cat:"society", catLabel:"AI社会", title:"生成AIは優しいが、優しいだけだ",
+      tier1: `<p>ある企業の保健スタッフが驚いた──想像以上に多くの社員が<strong>生成AIに悩みを相談</strong>していた。</p><p>AIは「いつでもどこでも優しく寄り添ってくれる」相談相手。しかし優しいだけでは、本当の問題解決にはならない。</p><p>AIチャットボット「こころコンディショナー」は、<strong>自分で考える力を伸ばす設計</strong>。困ったら人に相談するよう促す仕組みも。</p>`,
+      details: [
+        { h:"AIカウンセリングの光と影", body:"<p>光：24時間相談可能、心理的ハードルが低い、知識が豊富。影：心地よさへの依存、自分で考える力の放棄、若年層や精神的に弱い人への悪影響の可能性。</p>" },
+        { h:"人間にしかできないこと", body:"<p>「厳しい優しさ」──問題に向き合う力を引き出すこと。デジタル技術と人が上手に協業する仕組みづくりが求められている。</p>" }
+      ],
+      tags: ["#メンタルヘルス","#AI依存"], url: "https://www.nikkei.com/article/DGXZQOSG04BAC0U6A200C2000000/" }
+  ]
+},
+"2026-02-15": {
+  date: "2月15日", dow: "土曜日",
+  articles: [
+    { cat:"tech", catLabel:"AI技術", title:"プログラミングが全自動に。マスク氏「2026年末にも」",
+      tier1: `<p>AIによるプログラミング自動化が急速に進んでいる。</p><p>OpenAI・Anthropicの最新AIが<strong>トップ技術者を超える性能</strong>に到達。Spotifyの最高技術者は「12月からコードを1行も書いていない」と証言。</p><p>マスク氏は「2026年末にもプログラミングが全自動化される」と予測。iOSアプリの新規公開数が前年同期比5割増。</p>`,
+      details: [
+        { h:"何が起きている？", body:"<p>OpenAI・Anthropicの最新AIがトップ技術者を凌駕する性能を発揮。Spotifyの最高技術者は12月からコードを1行も書いていないと証言。SaaS銘柄全面安の「Coworkショック」にも言及。</p>" },
+        { h:"なぜ重要？", body:"<p>Anthropic CEOは「AIが自律的に次世代AIを開発するまで1〜2年」と発言。プログラマーの仕事が根本的に変わる可能性を示唆しています。</p>" }
+      ],
+      tags: ["#プログラミング","#自動化"], url: "https://www.nikkei.com/article/DGXZQOGN12C460S6A210C2000000/" },
+    { cat:"tech", catLabel:"AI技術", title:"Google「Gemini 3」推論モデルを改良。科学研究向けに強化",
+      tier1: `<p>Googleが最新AI「Gemini 3」の推論モデルを改良した。</p><p><strong>科学研究向けに特化した性能強化</strong>を実施。研究分野でのAI活用がさらに加速する。</p>`,
+      details: [
+        { h:"ポイント", body:"<p>Google最新モデルの動向。科学研究分野でのAI活用競争がOpenAI・Anthropicとの間で激化しています。</p>" }
+      ],
+      tags: ["#Google","#Gemini"], url: "https://www.nikkei.com/article/DGKKZO94415300T10C26A2EA5000/" },
+    { cat:"biz", catLabel:"AIビジネス", title:"ソニー、作曲AIの学習データを特定。「ビートルズ3割」と数値化",
+      tier1: `<p>ソニーGがAI製音楽から学習に使われた楽曲を割り出す技術を開発。</p><p><strong>「ビートルズ3割、クイーン1割」のように貢献度を数値化</strong>できる。AIの内部接続・楽曲比較の2手法を構築。</p><p>映像・ゲーム・キャラクターにも応用可能。</p>`,
+      details: [
+        { h:"なぜ画期的？", body:"<p>AIが「誰の曲を参考にしたか」を数値で示せるようになる。音楽業界のAI著作権問題を解決する技術的アプローチです。学会でも論文採択されています。</p>" }
+      ],
+      tags: ["#ソニー","#音楽AI"], url: "https://www.nikkei.com/article/DGXZQOGN070LT0X00C26A2000000/" },
+    { cat:"biz", catLabel:"AIビジネス", title:"小売りAI、Google上で購入完結。Walmart「主導権渡さない」",
+      tier1: `<p>GoogleのAI検索サービスで<strong>商品購入がGoogle上で完結</strong>する動きが出てきた。</p><p>これに対しWalmartが自社プラットフォームの主導権を守る姿勢を表明。小売業界でのAI活用をめぐる競争が激化している。</p>`,
+      details: [
+        { h:"構図", body:"<p>Google vs Walmartの小売AI主導権争い。AIが「検索→購入」を一気通貫で処理する未来が近づいています。</p>" }
+      ],
+      tags: ["#小売AI","#Google"], url: "https://www.nikkei.com/article/DGXZQOUC021JB0S6A200C2000000/" },
+    { cat:"society", catLabel:"AI社会", title:"米国「教師不在」のAI教育、学費1200万円でも大人気",
+      tier1: `<p>米アルファスクールが「教師不在」のAI活用教育を展開。</p><p>1クラス最大6人、AIが習熟度に応じた問題を出題。<strong>学費年間7.5万ドル（約1200万円）でもテック企業幹部に大人気</strong>。</p><p>「マイクロスクール」も広がり75万〜200万人が利用中。</p>`,
+      details: [
+        { h:"何が新しい？", body:"<p>AIが個別最適化された教育を提供。教師の役割が「教える人」から「体験を設計する人」へ変わる。教育の概念そのものが変わりつつあります。</p>" }
+      ],
+      tags: ["#教育","#マイクロスクール"], url: "https://www.nikkei.com/article/DGXZQOGN025R50S6A200C2000000/" },
+  ]
+},
+"2026-02-16": {
+  date: "2月16日", dow: "月曜日",
+  articles: [
+    { cat:"tech", catLabel:"AI技術", title:"OpenAI、AIが勝手にSNSを運営する技術を手に入れた",
+      tier1: `<p>OpenAIが「AIに自分でパソコンを操作させる技術」の開発者を採用した。</p><p>AIが人間の代わりにSNSを運営したり、アプリを操作したり、<strong>「自分で判断して自分で動く」</strong>ことが本格的にできるようになる。</p><p>アルトマンCEOは「うちの製品の中核になる」と言っている。</p>`,
+      details: [
+        { h:"何が起きた？", body:"<p>OpenAIが「モルトブック」というAI専用SNSの基盤技術（OpenClaw）を開発したピーター・スタインバーガー氏を採用しました。</p>" },
+        { h:"なぜ重要？", body:"<p>いま私たちがマウスやキーボードで操作していることを、AIが画面を見ながら自分で判断してやってくれるようになります。</p>" },
+        { h:"私たちへの影響", body:"<p>社内のルーチン業務（データ入力、レポート作成、申請処理など）をAIが自律的に処理する未来が近づいています。「AIに任せられる業務」を洗い出しておくと良いかもしれません。</p>" }
+      ],
+      tags: ["#AIエージェント","#OpenAI"], url: "https://www.nikkei.com/article/DGXZQOGN160340W6A210C2000000/" },
+    { cat:"tech", catLabel:"AI技術", title:"ロボットが「自分で見て、考えて、動く」時代。投資額6兆円",
+      tier1: `<p>ロボットが人間に教わらなくても、自分で見て、考えて、動けるようになってきた。</p><p>これを「フィジカルAI」と呼ぶ。世界の投資額は<strong>6兆円（407億ドル）で過去最高</strong>。NVIDIAやMetaがデータ集めの買収を仕掛けまくっている。</p><p>カギは「ロボットに見せるお手本データ」をどれだけ持っているか。日本の工場に眠る職人の動きのデータは、世界が欲しがるお宝かもしれない。</p>`,
+      details: [
+        { h:"フィジカルAIって？", body:"<p>カメラやセンサーで周囲を「見て」、AIで状況を「判断して」、ロボットの体を「動かす」。この3つを一体化した技術です。</p>" },
+        { h:"数字で見る市場", body:"<ul><li>ロボティクス資金調達：407億ドル（過去最高）</li><li>世界モデルへの投資：14億→69億ドルに急増</li><li>フィジカルAI市場マップに70社以上</li></ul>" },
+        { h:"なぜデータが重要？", body:"<p>ロボットは「お手本の動き」をたくさん見て学ぶ。工場の作業動画や熟練動作のデータを大量に持っている会社が有利。日本の製造業のデータは世界トップクラスの価値がある可能性があります。</p>" }
+      ],
+      tags: ["#フィジカルAI","#ロボット"], url: "https://www.nikkei.com/article/DGXZQOUC1065K0Q6A210C2000000/" },
+    { cat:"tech", catLabel:"AI技術", title:"1人で50台のロボットを操れる時代が来る",
+      tier1: `<p>サイバーエージェントが阪大・石黒教授と組んで、1人で複数台のロボットを同時に操るシステムを開発中。</p><p><strong>2030年に「1人で最大50台」</strong>が目標。パナソニックはすでに1人で10台の宅配ロボを遠隔監視できている。</p><p>AIが人間の判断を補助してくれるから実現できる。新しい働き方の可能性がここにある。</p>`,
+      details: [
+        { h:"どういう仕組み？", body:"<p>ロボットが自律的に動き、問題が起きたときだけ人間に「判断して」と聞いてくる。だから1人で何十台も「見守れる」。</p>" },
+        { h:"注目ポイント", body:"<ul><li>サイバーエージェント × 大阪大学・石黒教授の共同開発</li><li>2030年に1人50台操作を目指す</li><li>パナソニックHDは1人10台の宅配ロボ遠隔監視を実現済み</li><li>障害者雇用の新たな可能性としても注目</li></ul>" }
+      ],
+      tags: ["#ロボット","#働き方"], url: "https://www.nikkei.com/article/DGXZQOUC117CF0R11C25A2000000/" },
+    { cat:"biz", catLabel:"AIビジネス", title:"AIで開発期間3割減、コスト4割減。SIer業界が変わる",
+      tier1: `<p>品質保証のSHIFTが、AIを使ったシステム開発で驚きの数字を出した。</p><p><strong>開発期間：13ヶ月→9.3ヶ月（3割減）</strong><br><strong>人手：100人月→55人月（半減近く）</strong><br><strong>価格：1.4億円→1億円（4割減）</strong></p><p>使っているのはAIエージェント「Devin」。大手SIerと真っ向勝負を宣言している。</p>`,
+      details: [
+        { h:"SHIFTって？", body:"<p>ソフトウェアの品質保証で急成長した会社。AIを武器に「モダナイゼーション」（古いシステムを最新に作り替える）事業に本格参入。</p>" },
+        { h:"何が画期的？", body:"<p>AIエージェント「Devin」がコードを自動生成。人間のエンジニアが少なくて済む。期間・コスト・人数すべてが大幅に減る。2027年に40億円規模の事業を目指しています。</p>" },
+        { h:"私たちへの影響", body:"<p>社内のシステム刷新プロジェクトの見積もりが今後大きく変わる可能性。「AI活用前提」の見積もりを取るべき時代に。</p>" }
+      ],
+      tags: ["#DX","#コスト削減"], url: "https://www.nikkei.com/article/DGXZQOUC285SF0Y6A120C2000000/" },
+    { cat:"biz", catLabel:"AIビジネス", title:"マイクロソフト社長「AI筋トレ、毎日やってますか？」",
+      tier1: `<p>日本マイクロソフトの津坂社長が語った「AI筋トレ」── 毎日AIを使って鍛えること。</p><p>社内では会議の人数を減らして、浮いた時間を顧客訪問に回している。</p><p><strong>2028年までに世界で13億人がAIエージェントを使う</strong>ようになると試算。キーワードは「改善と改革の見極め」。</p>`,
+      details: [
+        { h:"津坂社長のメッセージ", body:"<ul><li>「AI筋トレ」＝ 毎日AIを使って使いこなす力を鍛えること</li><li>2026年のキーワードは「セキュリティ」と「AIエージェントの一般化」</li><li>「改善」で済むことと「抜本的な改革」が必要なことを見極めよ</li></ul>" },
+        { h:"MSの社内実践", body:"<p>会議の参加人数を削減し、浮いた時間で顧客訪問を増やす。AI活用を全社の日常業務に組み込む文化づくり。</p>" }
+      ],
+      tags: ["#マイクロソフト","#AI活用"], url: "https://www.nikkei.com/article/DGXZQOUC036BC0T00C26A2000000/" },
+    { cat:"biz", catLabel:"AIビジネス", title:"「みんなが使えるAGI」を作る日本の新興企業、80億円調達",
+      tier1: `<p>東大・松尾研究所発のAIスタートアップ「サードインテリジェンス」が博報堂DYと提携。2026年中に消費者向けサービスを出す。</p><p>狙いは「遍在型AGI」── <strong>日常のあらゆる場面にAIがいる世界</strong>。すでに80億円を調達済み。</p>`,
+      details: [
+        { h:"サードインテリジェンスとは", body:"<p>東大の松尾研究所に関連するAIスタートアップ。「遍在型AGI」（あらゆる場所にAIがいる状態）の開発を目指す。</p>" },
+        { h:"なぜ博報堂と組む？", body:"<p>博報堂DYHDはマーケティング・消費者理解のプロ。AGI技術 × 消費者インサイトで、一般の人が使いやすいAIサービスを作る狙い。80億円調達済み、2026年中にサービス提供予定。</p>" }
+      ],
+      tags: ["#AGI","#スタートアップ"], url: "https://www.nikkei.com/article/DGXZQOUC129U00S6A210C2000000/" },
+    { cat:"biz", catLabel:"AIビジネス", title:"大企業の76%が法務でAIを使っている",
+      tier1: `<p>日経の調査で、主要企業の<strong>76%</strong>が法務業務にAIを導入済み。</p><p>使い方トップ3：論点整理（179社）、翻訳（175社）、法令調査（127社）。</p><p>伊藤忠はMNTSQの法務AIシステムを導入。「法務×AI」はもう当たり前の時代になった。</p>`,
+      details: [
+        { h:"調査結果", body:"<ul><li>主要企業の76%が法務にAI活用</li><li>論点整理179社、翻訳175社、法令調査127社</li><li>伊藤忠商事：MNTSQの法務支援AIシステム導入</li></ul>" },
+        { h:"同時進行する課題", body:"<p>AIガバナンス（AIの使い方ルール）の整備が急務。法務部門がAIを使いこなすと同時に、AI利用そのもののルールも作っている状況です。</p>" }
+      ],
+      tags: ["#法務DX","#生成AI活用"], url: "https://www.nikkei.com/article/DGKKZO94427780V10C26A2TCJ000/" },
+    { cat:"invest", catLabel:"AI投資", title:"インドに10兆円流入。世界のAI計算基地になる",
+      tier1: `<p>米テック大手がインドにデータセンター投資を集中させている。</p><p><strong>Google：2.3兆円 / Microsoft：175億ドル / Amazon：350億ドル超</strong></p><p>理由は明快。建設コストが日本の半分で、理工系人材が年250万人出てくる。2027年にはデータセンター市場が日本を超える見通し。</p>`,
+      details: [
+        { h:"なぜインド？", body:"<ul><li>建設コストが日本の約半分</li><li>理工系の大学卒業者が年250万人</li><li>英語が通じるIT人材の宝庫</li><li>政府がAI推進に積極的（2/16にAIインパクトサミット開幕）</li></ul>" },
+        { h:"日本への示唆", body:"<p>2027年にインドのDC市場が日本を上回る見通し。AI計算需要の「世界地図」が塗り替わりつつあります。</p>" }
+      ],
+      tags: ["#インド","#データセンター"], url: "https://www.nikkei.com/article/DGXZQOGM069NW0W6A200C2000000/" },
+    { cat:"invest", catLabel:"AI投資", title:"日本の半導体復活の切り札「EUV」導入が加速中",
+      tier1: `<p>AI半導体を作るのに欠かせない最先端装置「EUV」。日本での導入が急ピッチで進んでいる。</p><p><strong>ラピダスは2台目を導入済み。マイクロンも広島に導入。</strong>装置メーカーASMLの日本向け売上は前年比4割増。</p><p>2032年に日本の先端半導体生産能力は世界の5%に。「半導体復活」は着実に進んでいる。</p>`,
+      details: [
+        { h:"EUVとは", body:"<p>極端紫外線リソグラフィ。最先端の半導体を作るために必要な光の技術で、1台数百億円する超高額装置。オランダASML社の独占。</p>" },
+        { h:"日本の動き", body:"<ul><li>ラピダス：2台目のEUV導入済み</li><li>マイクロン：広島工場にEUV導入</li><li>ASML日本向け売上：前期比4割増</li><li>目標：2032年に先端半導体生産能力を世界の5%に</li></ul>" }
+      ],
+      tags: ["#半導体","#ラピダス"], url: "https://www.nikkei.com/article/DGXZQOUC0840B0Y6A200C2000000/" },
+    { cat:"policy", catLabel:"AI規制", title:"政府方針：AIロボットには「人の判断」を必ず入れる",
+      tier1: `<p>政府がAIの新ルールを作る。</p><p>AIエージェントやロボットが自律的に動く時代に、<strong>「人の判断を必ず挟む仕組み」</strong>を指針に明記する方針。</p><p>AIが暴走しないための安全装置を、制度として組み込む。日本のAI規制の方向性がはっきりしてきた。</p>`,
+      details: [
+        { h:"「ヒューマン・イン・ザ・ループ」とは", body:"<p>AIが最終的な判断をする前に、必ず人間が確認・承認する仕組み。完全自動ではなく「人間が監督する」モデル。</p>" },
+        { h:"企業への影響", body:"<p>AI導入時に「どこに人の判断を入れるか」を設計することが、今後のコンプライアンス要件になる可能性があります。</p>" }
+      ],
+      tags: ["#AIガバナンス","#政策"], url: "https://www.nikkei.com/article/DGXZQOUA136YP0T10C26A2000000/" },
+    { cat:"society", catLabel:"AI社会", title:"AIが女性の経歴を短くする？ 偏見の増幅が科学的に証明",
+      tier1: `<p>スタンフォード大学などの研究で、AIの偏見が数字で明らかになった。</p><p>AIが作った女性の履歴書は、<strong>男性より1.6歳若く、経験が0.9年短く</strong>書かれる。チューリヒ大学は、中国人の文章をAIが低く評価する傾向を指摘。</p><p>人間の偏見をAIが学んで、さらに増幅してしまう。採用や人事評価にAIを使う企業は、要注意。</p>`,
+      details: [
+        { h:"研究結果", body:"<ul><li>スタンフォード大：AI生成の女性履歴書は男性より平均1.6歳若く、経験0.9年短い</li><li>チューリヒ大：中国人の文章をAIが低く評価する傾向</li></ul>" },
+        { h:"なぜ起きる？", body:"<p>AIは過去のデータから学ぶ。過去のデータに含まれる人間の偏見を、そのまま（あるいは増幅して）再現してしまう。採用・評価にAIを使う場合、バイアスチェックが必須です。</p>" }
+      ],
+      tags: ["#AIバイアス","#人事"], url: "https://www.nikkei.com/article/DGXZQOSG135EX0T10C26A1000000/" },
+    { cat:"society", catLabel:"AI社会", title:"AIの電力消費が「新しい公害」を生んでいる",
+      tier1: `<p>AIの裏側で、深刻な問題が起きている。</p><p>データセンターの電力需要が爆発的に増え、電力を確保するために<strong>化石燃料への依存が再び強まっている</strong>。結果、大気汚染が悪化。</p><p>便利さの裏にある環境負荷。ESGの観点からも無視できない話。</p>`,
+      details: [
+        { h:"何が起きている？", body:"<p>AI学習・推論に使うデータセンターの電力需要が急増。再生可能エネルギーだけでは追いつかず、石炭・天然ガスに頼る動きが加速。大気汚染の悪化、CO2排出量の増加が問題に。</p>" },
+        { h:"企業としてどう考える？", body:"<p>AI活用を進めるほど間接的に環境負荷も増える。「AI推進」と「環境目標」の両立がESG・サステナビリティの観点から経営課題に。</p>" }
+      ],
+      tags: ["#環境","#ESG"], url: "https://www.nikkei.com/article/DGXZQOCD1020Z0Q6A210C2000000/" }
+  ]
+}
+};
+
+// ════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════
+let currentDayIdx = days.length - 1; // start on latest day
+let currentCat = "all";
+
+// ════════════════════════════════════════
+// RENDER
+// ════════════════════════════════════════
+function render() {
+  const key = days[currentDayIdx];
+  const day = DATA[key];
+  const arts = day.articles;
+
+  // Header
+  document.getElementById('currentDate').textContent = day.date;
+  const total = arts.length;
+  document.getElementById('dayLabel').textContent = `${day.dow} ・ ${total}件`;
+  document.getElementById('btnPrev').disabled = (currentDayIdx <= 0);
+  document.getElementById('btnNext').disabled = (currentDayIdx >= days.length - 1);
+
+  // Category counts
+  const counts = { all: total };
+  Object.keys(catNames).forEach(k => counts[k] = 0);
+  arts.forEach(a => { if (counts[a.cat] !== undefined) counts[a.cat]++; });
+
+  // Stats bar
+  let statsHtml = `<div class="stat-chip">★★★ 重要記事 <span class="num">${total}</span></div>`;
+  Object.entries(catNames).forEach(([k,v]) => {
+    if (counts[k] > 0) statsHtml += `<div class="stat-chip">${v} <span class="num">${counts[k]}</span></div>`;
+  });
+  document.getElementById('statsBar').innerHTML = statsHtml;
+
+  // Category tabs
+  let tabsHtml = `<div class="cat-tab ${currentCat==='all'?'active':''}" data-cat="all" onclick="filterCat('all')">すべて <span class="count">${total}</span></div>`;
+  Object.entries(catNames).forEach(([k,v]) => {
+    if (counts[k] > 0) tabsHtml += `<div class="cat-tab ${currentCat===k?'active':''}" data-cat="${k}" onclick="filterCat('${k}')">${v} <span class="count">${counts[k]}</span></div>`;
+  });
+  document.getElementById('catTabs').innerHTML = tabsHtml;
+
+  // Cards
+  let cardsHtml = '';
+  arts.forEach((a, i) => {
+    const hidden = (currentCat !== 'all' && a.cat !== currentCat) ? ' hidden' : '';
+    let detailsHtml = '';
+    a.details.forEach(d => {
+      detailsHtml += `<div class="detail-section"><h4>${d.h}</h4>${d.body}</div>`;
+    });
+    const tagsHtml = a.tags.map(t => `<span class="tag">${t}</span>`).join('');
+
+    cardsHtml += `
+    <div class="card${hidden}" data-cat="${a.cat}" data-idx="${i}">
+      <div class="card-head" onclick="toggleCard(this)">
+        <div class="card-cat-dot ${a.cat}"></div>
+        <div class="card-head-content">
+          <div class="card-cat-label ${a.cat}">${a.catLabel}</div>
+          <div class="card-title">${a.title}</div>
+        </div>
+        <div class="card-arrow">▶</div>
+      </div>
+      <div class="card-tier1">
+        <div class="tier1-text">${a.tier1}</div>
+        <div class="comment-box">
+          <div class="comment-avatar">H</div>
+          <div class="comment-content">
+            <div class="label">畠山の感想</div>
+            <textarea class="comment-textarea" placeholder="ここに感想を入力..." data-day="${key}" data-idx="${i}" oninput="saveComment(this)">${getComment(key, i)}</textarea>
+            <div class="comment-saved" id="saved-${key}-${i}">自動保存しました</div>
+          </div>
+        </div>
+        <div class="tier1-actions">
+          <button class="btn-detail" onclick="toggleDetail(this)">もっと詳しく ▼</button>
+          <a class="btn-nikkei" href="${a.url}" target="_blank">日経電子版 →</a>
+        </div>
+        <div class="tags">${tagsHtml}</div>
+      </div>
+      <div class="card-tier2">
+        ${detailsHtml}
+        <button class="btn-copy" onclick="copyPost(this, '${key}', ${i})">投稿テキストをコピー</button>
+      </div>
+    </div>`;
+  });
+  document.getElementById('cardList').innerHTML = cardsHtml;
+
+  // Archive
+  let archiveHtml = '<h2 style="font-size:18px;font-weight:700;margin-bottom:16px;padding:0 4px;">過去のニュース</h2>';
+  for (let i = days.length - 1; i >= 0; i--) {
+    const dk = days[i];
+    const dd = DATA[dk];
+    const isCurrent = (i === currentDayIdx);
+    const isToday = (i === days.length - 1);
+    archiveHtml += `
+    <div class="past-date-item${isCurrent ? ' current' : ''}" onclick="goToDay(${i})">
+      <div>
+        <div class="d">${dd.date}（${dd.dow.charAt(0)}）</div>
+        <div class="cnt" style="${isToday?'color:#ff6b35':''}">${isToday?'最新':''}</div>
+      </div>
+      <div class="cnt">${dd.articles.length}件</div>
+    </div>`;
+  }
+  document.getElementById('archiveList').innerHTML = archiveHtml;
+}
+
+// ════════════════════════════════════════
+// INTERACTIONS
+// ════════════════════════════════════════
+function changeDate(dir) {
+  const next = currentDayIdx + dir;
+  if (next >= 0 && next < days.length) {
+    currentDayIdx = next;
+    currentCat = "all";
+    render();
+    switchView('today');
+    window.scrollTo(0, 0);
+  }
+}
+
+function goToDay(idx) {
+  currentDayIdx = idx;
+  currentCat = "all";
+  render();
+  switchView('today');
+  window.scrollTo(0, 0);
+}
+
+function filterCat(cat) {
+  currentCat = cat;
+  render();
+}
+
+function toggleCard(el) {
+  const card = el.closest('.card');
+  card.classList.toggle('open');
+  if (!card.classList.contains('open')) card.classList.remove('detail-open');
+}
+
+function toggleDetail(el) {
+  const card = el.closest('.card');
+  card.classList.toggle('detail-open');
+  el.textContent = card.classList.contains('detail-open') ? 'とじる ▲' : 'もっと詳しく ▼';
+}
+
+function switchView(view) {
+  // Always re-render to ensure data consistency
+  render();
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('navToday').classList.remove('active');
+  document.getElementById('navArchive').classList.remove('active');
+  if (view === 'today') {
+    document.getElementById('viewToday').classList.add('active');
+    document.getElementById('navToday').classList.add('active');
+  } else {
+    document.getElementById('viewArchive').classList.add('active');
+    document.getElementById('navArchive').classList.add('active');
+  }
+}
+
+function copyPost(btn, dayKey, idx) {
+  const a = DATA[dayKey].articles[idx];
+  const d = DATA[dayKey];
+  const comment = getComment(dayKey, idx);
+  const commentText = comment ? `畠山の感想：${comment}` : '畠山の感想：';
+  const text = `【AI Daily News】${d.date}\n\n${a.title}\n\n${a.tier1.replace(/<[^>]+>/g,'').replace(/\n\n+/g,'\n\n').trim()}\n\n${commentText}\n\n${a.tags.join(' ')} #AI_Daily_News\n\n📰 ${a.url}`;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.classList.add('copied'); btn.textContent = 'コピーしました!';
+    setTimeout(() => { btn.classList.remove('copied'); btn.textContent = '投稿テキストをコピー'; }, 2000);
+  }).catch(() => {
+    const ta = document.createElement('textarea'); ta.value = text;
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    btn.classList.add('copied'); btn.textContent = 'コピーしました!';
+    setTimeout(() => { btn.classList.remove('copied'); btn.textContent = '投稿テキストをコピー'; }, 2000);
+  });
+}
+
+// ════════════════════════════════════════
+// COMMENT PERSISTENCE (localStorage)
+// ════════════════════════════════════════
+function getCommentKey(dayKey, idx) {
+  return `ai-daily-comment-${dayKey}-${idx}`;
+}
+
+function getComment(dayKey, idx) {
+  try { return localStorage.getItem(getCommentKey(dayKey, idx)) || ''; }
+  catch(e) { return ''; }
+}
+
+let saveTimer = null;
+function saveComment(el) {
+  const dayKey = el.dataset.day;
+  const idx = el.dataset.idx;
+  try { localStorage.setItem(getCommentKey(dayKey, idx), el.value); }
+  catch(e) {}
+  // Show "saved" indicator
+  const savedEl = document.getElementById(`saved-${dayKey}-${idx}`);
+  if (savedEl) {
+    savedEl.classList.add('show');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => savedEl.classList.remove('show'), 1500);
+  }
+}
+
+// ── Init ──
+render();
+</script>
+</body>
+</html>
